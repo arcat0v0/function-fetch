@@ -1,0 +1,14 @@
+{
+	// 项目名，对应 ESA Pages/函数应用名称
+	"name": "function-fetch",
+	// 边缘函数入口文件（TypeScript 源文件），ESA 会按 entry 执行
+	"entry": "./src/node.ts",
+	// 安装与构建命令
+	"installCommand": "pnpm install",
+	"buildCommand": "pnpm run build:node"
+	// 如需托管静态资源，可增加 assets 配置，例如：
+	// "assets": {
+	//   "directory": "./dist",
+	//   "notFoundStrategy": "singlePageApplication"
+	// }
+}

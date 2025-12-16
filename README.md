@@ -1,80 +1,129 @@
-```txt
-pnpm install
-pnpm run dev
-```
+# Function Fetch - Smart Edge Reverse Proxy
 
-```txt
-pnpm run deploy
-```
+A high-performance, smart reverse proxy designed for Serverless Edge environments (Cloudflare Workers, Alibaba Cloud ESA) and Node.js. It automatically detects and routes traffic to the fastest backend target, providing failover and multi-level caching.
 
-## Node.js Serverless 适配
+[中文文档 (Chinese Documentation)](docs/README_zh-CN.md)
 
-- 提供了 `createNodeHandler`（`src/node.ts`），可直接接入常见 Node Serverless 平台（如 Vercel/Netlify Functions、自建 Express/HTTP Server）。
-- 环境变量默认读取 `process.env`；可通过 `createNodeHandler({ env: { ... } })` 覆盖，`kvNamespace` 可注入兼容 KV API 的实例（如果平台支持）。
-- 示例（原生 `http`）：
+## ✨ Features
 
-```ts
+- **Smart Routing**: Automatically probes latency of backend targets and routes traffic to the fastest one.
+- **Failover**: Automatically retries the next best target when the primary node returns a 5xx error.
+- **Multi-Level Caching**:
+  - **L1 Memory Cache**: Instance-level hot cache.
+  - **L2 Persistent Cache**: Supports Cloudflare KV and Alibaba Cloud ESA EdgeKV.
+- **Multi-Platform**:
+  - **Cloudflare Workers**: Native support via `wrangler`.
+  - **Alibaba Cloud ESA**: Supports Edge Routine and EdgeKV.
+  - **Node.js**: Adapter provided for integration with Express/HTTP Server or Docker.
+
+## 🛠️ Configuration
+
+All configuration is managed via environment variables:
+
+| Variable | Description | Default | Example |
+| :--- | :--- | :--- | :--- |
+| `FETCH_TARGETS` | **(Required)** List of target servers. JSON array or comma/space separated. | - | `["https://us.ex.com", "https://eu.ex.com"]` |
+| `FETCH_HEALTH_PATH` | Path used for health checks. Latency is calculated by requesting `Target + HealthPath`. | `/` | `/ping` |
+| `FETCH_HEALTH_TIMEOUT_MS` | Timeout for health checks (ms). | `1500` | `2000` |
+| `FETCH_RETRY_ON_5XX` | Whether to retry other nodes on 5xx errors. | `true` | `false` |
+| `FETCH_CACHE_ADAPTER` | Cache strategy: `memory`, `kv`, `auto`, `none`. | `auto` | `memory,kv` |
+| `FETCH_CACHE_KEY` | Cache key for storing the fastest node info. | `proxy:fastest` | `my-app:best` |
+| `FETCH_CACHE_TTL_SECONDS` | TTL for the fastest node cache (seconds). | `300` | `60` |
+| `FETCH_CACHE_KV_BINDING` | **(Cloudflare)** KV binding name. | `FASTEST_KV` | `MY_KV` |
+| `ESA_KV_NAMESPACE` | **(Alibaba Cloud ESA)** EdgeKV Namespace ID. | - | `1234567890` |
+
+## 🚀 Deployment
+
+### 1. Cloudflare Workers
+
+1.  Install dependencies:
+    ```bash
+    pnpm install
+    ```
+2.  Configure `wrangler.jsonc`:
+    ```jsonc
+    {
+      "name": "my-proxy",
+      "main": "src/index.ts",
+      "compatibility_date": "2024-04-01",
+      "vars": {
+        "FETCH_TARGETS": "[\"https://api-us.server.com\", \"https://api-eu.server.com\"]",
+        "FETCH_HEALTH_PATH": "/health"
+      },
+      "kv_namespaces": [
+        { "binding": "FASTEST_KV", "id": "<YOUR_KV_ID>" }
+      ]
+    }
+    ```
+3.  Deploy:
+    ```bash
+    pnpm run deploy
+    ```
+
+### 2. Alibaba Cloud ESA (Edge Security Acceleration)
+
+For ESA Edge Routine, you need to bundle the code.
+
+1.  **Bundle Code**:
+    You can use `esbuild` to create a single-file bundle from `src/esa.ts`.
+    ```bash
+    # 1. Generate environment config file
+    pnpm run gen:esa-env
+
+    # 2. Bundle the code
+    npx esbuild src/esa.ts --bundle --outfile=dist/esa.js --format=esm --target=esnext
+    ```
+    *Note: `src/esa.ts` is the dedicated entry point for ESA.*
+
+2.  **Configure EdgeKV**:
+    Create an EdgeKV Namespace in the Alibaba Cloud ESA console and note the Namespace ID.
+
+3.  **Upload**:
+    Copy the content of `dist/esa.js` to the Edge Routine code editor in the ESA console.
+
+4.  **Set Environment Variables** (in ESA Console):
+    - `FETCH_TARGETS`: `https://origin1.com,https://origin2.com`
+    - `ESA_KV_NAMESPACE`: `<Your_Namespace_ID>` (Required for persistent caching)
+
+### 3. Node.js
+
+Run as a standalone service or integrate into an existing app.
+
+**Standalone:**
+
+1.  Build:
+    ```bash
+    pnpm run build:node
+    ```
+2.  Run:
+    ```bash
+    export FETCH_TARGETS="https://a.com, https://b.com"
+    node dist-node/node_server.js
+    ```
+
+**Integration:**
+
+```typescript
 import http from "node:http";
 import { createNodeHandler } from "./src/node";
 
-const handler = createNodeHandler();
+const handler = createNodeHandler({
+  env: {
+    FETCH_TARGETS: "https://api.example.com"
+  }
+});
 
-http
-  .createServer((req, res) => {
-    void handler(req, res);
-  })
-  .listen(8787, () => {
-    console.log("listening on http://localhost:8787");
-  });
+http.createServer((req, res) => {
+  handler(req, res);
+}).listen(3000);
 ```
 
-## Proxy 配置（环境变量）
+## 📦 Development
 
-- `FETCH_TARGETS`：多个目标基址（负载均衡），支持两种格式：
-  - JSON 数组：`["https://a.com","https://b.com/api"]`
-  - 逗号/空格/换行分隔：`https://a.com, https://b.com/api`
-- 如果数组里只有一个网址，则等价于不需要负载均衡
-- 转发规则：保留原始 `path + query`，并追加到目标基址的 path 上（例如目标 `https://b.com/api` + 请求 `/v1/ping` => `https://b.com/api/v1/ping`）
-- `FETCH_HEALTH_PATH`：健康检查 path（只用于 Worker 自己探测最快目标），默认 `/`
-- `FETCH_HEALTH_TIMEOUT_MS`：健康检查超时（毫秒），默认 `1500`
-- `FETCH_RETRY_ON_5XX`：对 `GET/HEAD/OPTIONS` 是否在 5xx 时切换其它目标重试，默认 `true`
-- `FETCH_CACHE_ADAPTER`：选择用于缓存“最快目标”的缓存适配器，默认 `auto`（`memory,kv`）；可选值示例：`kv` / `memory` / `memory,kv` / `none`
+```bash
+# Local development (Cloudflare simulation)
+pnpm run dev
 
-### 缓存最快目标（可选）
-
-绑定一个 KV Namespace 到 `FASTEST_KV` 后，Worker 会把探测到的最快目标缓存起来：
-
-- `FETCH_CACHE_KEY`：缓存 key，默认 `proxy:fastest`
-- `FETCH_CACHE_TTL_SECONDS`：缓存 TTL（秒），默认 `300`（最小 10）
-
-## Cloudflare Workers / Wrangler 示例
-
-`wrangler.jsonc`：
-
-```jsonc
-{
-  "vars": {
-    "FETCH_TARGETS": "[\"https://a.com\",\"https://b.com/api\"]",
-    "FETCH_HEALTH_PATH": "/healthz",
-    "FETCH_CACHE_TTL_SECONDS": "300"
-  },
-  "kv_namespaces": [
-    { "binding": "FASTEST_KV", "id": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx" }
-  ]
-}
-```
-
-## 类型生成
-
-[For generating/synchronizing types based on your Worker configuration run](https://developers.cloudflare.com/workers/wrangler/commands/#types):
-
-```txt
+# Type generation
 pnpm run cf-typegen
-```
-
-Pass the `CloudflareBindings` as generics when instantiation `Hono`:
-
-```ts
-// src/index.ts
-const app = new Hono<{ Bindings: CloudflareBindings }>()
 ```

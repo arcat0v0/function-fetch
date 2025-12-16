@@ -1,0 +1,44 @@
+{
+	"$schema": "node_modules/wrangler/config-schema.json",
+	"name": "function-fetch",
+	"main": "src/index.ts",
+  "compatibility_date": "2025-12-16"
+  // "compatibility_flags": [
+  //   "nodejs_compat"
+  // ],
+  // "vars": {
+  //   "PROXY_TARGET": "https://example.com",
+  //   "PROXY_TARGETS": "[\"https://a.com\",\"https://b.com/api\"]",
+  //   "PROXY_HEALTH_PATH": "/healthz",
+  //   "PROXY_HEALTH_TIMEOUT_MS": "1500",
+  //   "PROXY_KV_KEY": "proxy:fastest",
+  //   "PROXY_KV_TTL_SECONDS": "300",
+  //   "PROXY_RETRY_ON_5XX": "true"
+  // },
+  // "kv_namespaces": [
+  //   {
+  //     "binding": "FASTEST_KV",
+  //     "id": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+  //   }
+  // ],
+	// "r2_buckets": [
+	//   {
+	//     "binding": "MY_BUCKET",
+	//     "bucket_name": "my-bucket"
+	//   }
+	// ],
+	// "d1_databases": [
+	//   {
+	//     "binding": "MY_DB",
+	//     "database_name": "my-database",
+	//     "database_id": ""
+	//   }
+	// ],
+	// "ai": {
+	//   "binding": "AI"
+	// },
+	// "observability": {
+	//   "enabled": true,
+	//   "head_sampling_rate": 1
+	// }
+}

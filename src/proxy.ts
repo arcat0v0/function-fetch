@@ -11,6 +11,7 @@ export type ProxyBindings = {
 	FETCH_CACHE_KEY?: string;
 	FETCH_CACHE_TTL_SECONDS?: string;
 	FETCH_RETRY_ON_5XX?: string;
+	FETCH_CACHE_KV_BINDING?: string;
 	FASTEST_KV?: KVNamespace;
 };
 
@@ -117,22 +118,32 @@ function parseCacheAdapterKinds(env: ProxyBindings): CacheAdapterKind[] {
 	const raw = env.FETCH_CACHE_ADAPTER?.trim();
 	if (!raw || raw.toLowerCase() === "auto") return ["memory", "kv"];
 
-	const items = raw
-		.toLowerCase()
-		.split(/[,\s]+/g)
-		.map((s) => s.trim())
-		.filter(Boolean);
+	let items: string[] = [];
+	if (raw.startsWith("[")) {
+		try {
+			const parsed = JSON.parse(raw) as unknown;
+			if (Array.isArray(parsed)) items = parsed.map(String);
+		} catch {
+			items = [];
+		}
+	} else {
+		items = raw
+			.split(/[,\s]+/g)
+			.map((s) => s.trim())
+			.filter(Boolean);
+	}
+	items = items.map((s) => s.replace(/^['"]|['"]$/g, "").toLowerCase());
 
 	const kinds: CacheAdapterKind[] = [];
 	for (const item of items) {
 		const kind =
 			item === "memory" || item === "mem" || item === "inmemory"
 				? "memory"
-				: item === "kv" || item === "cloudflare_kv"
-					? "kv"
-					: item === "none" || item === "off" || item === "disabled"
-						? "none"
-						: null;
+			: item === "kv" || item === "cloudflare_kv"
+				? "kv"
+			: item === "none" || item === "off" || item === "disabled"
+				? "none"
+				: null;
 		if (!kind) continue;
 		if (!kinds.includes(kind)) kinds.push(kind);
 	}
@@ -193,21 +204,24 @@ async function probeTargets(
 	return healthy[0]?.target ?? null;
 }
 
-function buildCacheManager(env: ProxyBindings): CacheManager {
+function buildCacheManager(env: ProxyBindings): CacheManager | null {
 	const kinds = parseCacheAdapterKinds(env);
+
+	if (kinds.includes("none")) return null;
 
 	const adapters: CacheAdapter[] = [];
 	for (const kind of kinds) {
-		if (kind === "none") break;
 		if (kind === "memory") {
 			adapters.push(memoryCache);
 			continue;
 		}
 		if (kind === "kv") {
-			const kv = env.FASTEST_KV;
+			const kv = getKvNamespace(env);
 			if (kv) adapters.push(new KvCacheAdapter(kv));
 		}
 	}
+
+	if (adapters.length === 0) return null;
 
 	return new CacheManager(adapters);
 }
@@ -218,6 +232,15 @@ function buildUpstreamUrl(target: Target, original: URL): URL {
 	upstream.search = original.search;
 	upstream.hash = "";
 	return upstream;
+}
+
+function getKvNamespace(env: ProxyBindings): KVNamespace | null {
+	const bindingName = env.FETCH_CACHE_KV_BINDING?.trim() || "FASTEST_KV";
+	if (!bindingName) return null;
+	const candidate = (env as Record<string, unknown>)[bindingName];
+	if (!candidate || typeof candidate !== "object") return null;
+	if (typeof (candidate as KVNamespace).get !== "function") return null;
+	return candidate as KVNamespace;
 }
 
 function cloneHeadersForUpstream(request: Request): Headers {
@@ -260,22 +283,41 @@ export async function proxyFetch(
 	);
 	const retryOn5xx = retryable && shouldRetryOn5xx(env);
 
-	const cache = buildCacheManager(env);
-	const key = cacheKey(env);
-	const ttlSeconds = cacheTtlSeconds(env);
+	let cache = buildCacheManager(env);
+	const key = cache ? cacheKey(env) : null;
+	const ttlSeconds = cache ? cacheTtlSeconds(env) : 0;
 
-	const cached = await cache.get(key, { ttlSeconds });
-	const cachedNormalized = cached ? normalizeCachedTarget(cached) : null;
-	let primary = cachedNormalized
-		? (targets.find((t) => t.normalized === cachedNormalized) ?? null)
-		: null;
+	let cachedNormalized: string | null = null;
+	if (cache && key) {
+		try {
+			const cached = await cache.get(key, { ttlSeconds });
+			cachedNormalized = cached ? normalizeCachedTarget(cached) : null;
+		} catch {
+			cache = null;
+			cachedNormalized = null;
+		}
+	}
 
-	if (!primary) {
-		primary = (await probeTargets(targets, env)) ?? targets[0] ?? null;
+	let primary: Target | null = null;
+	if (cache && key) {
+		primary = cachedNormalized
+			? targets.find((t) => t.normalized === cachedNormalized) ?? null
+			: null;
+
+		if (!primary) {
+			primary = (await probeTargets(targets, env)) ?? targets[0] ?? null;
+			if (!primary) {
+				return new Response("No proxy targets available", { status: 500 });
+			}
+			void cache.put(key, primary.normalized, { ttlSeconds }).catch(() => {
+				cache = null;
+			});
+		}
+	} else {
+		primary = targets[0] ?? null;
 		if (!primary) {
 			return new Response("No proxy targets available", { status: 500 });
 		}
-		void cache.put(key, primary.normalized, { ttlSeconds });
 	}
 
 	const ordered = [
@@ -294,8 +336,10 @@ export async function proxyFetch(
 				response.body?.cancel();
 				continue;
 			}
-			if (attempt === 0 && response.ok) {
-				void cache.put(key, target.normalized, { ttlSeconds });
+			if (attempt === 0 && response.ok && cache && key) {
+				void cache.put(key, target.normalized, { ttlSeconds }).catch(() => {
+					cache = null;
+				});
 			}
 			return response;
 		} catch (err) {

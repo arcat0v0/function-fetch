@@ -7,13 +7,12 @@
   //   "nodejs_compat"
   // ],
   // "vars": {
-  //   "PROXY_TARGET": "https://example.com",
-  //   "PROXY_TARGETS": "[\"https://a.com\",\"https://b.com/api\"]",
-  //   "PROXY_HEALTH_PATH": "/healthz",
-  //   "PROXY_HEALTH_TIMEOUT_MS": "1500",
-  //   "PROXY_KV_KEY": "proxy:fastest",
-  //   "PROXY_KV_TTL_SECONDS": "300",
-  //   "PROXY_RETRY_ON_5XX": "true"
+  //   "FETCH_TARGETS": "[\"https://a.com\",\"https://b.com/api\"]",
+  //   "FETCH_HEALTH_PATH": "/healthz",
+  //   "FETCH_HEALTH_TIMEOUT_MS": "1500",
+  //   "FETCH_CACHE_KEY": "proxy:fastest",
+  //   "FETCH_CACHE_TTL_SECONDS": "300",
+  //   "FETCH_RETRY_ON_5XX": "true"
   // },
   // "kv_namespaces": [
   //   {

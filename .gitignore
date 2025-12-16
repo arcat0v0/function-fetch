@@ -36,3 +36,6 @@ lerna-debug.log*
 # cloudflare
 .cloudflare/
 wrangler.jsonc
+
+# build outputs
+dist-node/

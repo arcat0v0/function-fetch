@@ -14,6 +14,7 @@ export type ProxyBindings = {
 	FETCH_CACHE_KV_BINDING?: string;
 	FASTEST_KV?: KVNamespace;
 	__CACHE_MANAGER__?: CacheManager;
+	ESA_KV_NAMESPACE?: string;
 };
 
 type Target = {

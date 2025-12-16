@@ -18,9 +18,7 @@ const worker = {
 		const adapters: CacheAdapter[] = [memoryCache];
 
 		// Check for ESA KV Namespace
-		// Use type assertion to access potential custom env var
-		const kvNamespace = (mergedEnv as unknown as Record<string, string>)
-			.ESA_KV_NAMESPACE;
+		const kvNamespace = mergedEnv.ESA_KV_NAMESPACE;
 
 		if (kvNamespace && typeof kvNamespace === "string") {
 			adapters.push(new EsaKvAdapter(kvNamespace));

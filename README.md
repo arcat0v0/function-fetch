@@ -7,6 +7,27 @@ pnpm run dev
 pnpm run deploy
 ```
 
+## Node.js Serverless 适配
+
+- 提供了 `createNodeHandler`（`src/node.ts`），可直接接入常见 Node Serverless 平台（如 Vercel/Netlify Functions、自建 Express/HTTP Server）。
+- 环境变量默认读取 `process.env`；可通过 `createNodeHandler({ env: { ... } })` 覆盖，`kvNamespace` 可注入兼容 KV API 的实例（如果平台支持）。
+- 示例（原生 `http`）：
+
+```ts
+import http from "node:http";
+import { createNodeHandler } from "./src/node";
+
+const handler = createNodeHandler();
+
+http
+  .createServer((req, res) => {
+    void handler(req, res);
+  })
+  .listen(8787, () => {
+    console.log("listening on http://localhost:8787");
+  });
+```
+
 ## Proxy 配置（环境变量）
 
 - `FETCH_TARGETS`：多个目标基址（负载均衡），支持两种格式：

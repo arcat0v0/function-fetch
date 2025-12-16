@@ -1,7 +1,7 @@
-import type { CacheAdapter } from "./adapter/cache_adapter";
-import { CacheManager } from "./adapter/cache_manager";
-import { KvCacheAdapter } from "./adapter/kv_adapter";
-import { MemoryCacheAdapter } from "./adapter/memory_adapter";
+import type { CacheAdapter } from "./adapter/cache_adapter.js";
+import { CacheManager } from "./adapter/cache_manager.js";
+import { KvCacheAdapter } from "./adapter/kv_adapter.js";
+import { MemoryCacheAdapter } from "./adapter/memory_adapter.js";
 
 export type ProxyBindings = {
 	FETCH_TARGETS?: string;

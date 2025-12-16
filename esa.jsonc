@@ -1,8 +1,8 @@
 {
 	// 项目名，对应 ESA Pages/函数应用名称
 	"name": "function-fetch",
-	// 边缘函数入口文件（TypeScript 源文件），ESA 要求默认导出包含 fetch
-	"entry": "./src/esa.ts",
+	// 边缘函数入口文件（构建后的 ES module），ESA 要求默认导出包含 fetch 或 bypass
+	"entry": "./dist-node/esa.js",
 	// 安装与构建命令
 	"installCommand": "pnpm install",
 	"buildCommand": "pnpm run build:node"

@@ -1,7 +1,7 @@
 import type { IncomingMessage, ServerResponse } from "node:http";
 import { Readable } from "node:stream";
 
-import { type ProxyBindings, proxyFetch } from "./proxy";
+import { type ProxyBindings, proxyFetch } from "./proxy.js";
 
 export type NodeProxyOptions = {
 	env?: Partial<ProxyBindings>;

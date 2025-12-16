@@ -1,4 +1,4 @@
-import type { CacheAdapter, CachePutOptions } from "./cache_adapter";
+import type { CacheAdapter, CachePutOptions } from "./cache_adapter.js";
 
 export class CacheManager {
 	constructor(private readonly adapters: CacheAdapter[]) {}

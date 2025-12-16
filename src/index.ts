@@ -1,5 +1,5 @@
 import { Hono } from "hono";
-import { type ProxyBindings, proxyFetch } from "./proxy";
+import { type ProxyBindings, proxyFetch } from "./proxy.js";
 
 const app = new Hono<{ Bindings: ProxyBindings }>();
 

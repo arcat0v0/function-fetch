@@ -36,3 +36,4 @@ lerna-debug.log*
 # cloudflare
 .cloudflare/
 wrangler.jsonc
+worker-configuration.d.ts

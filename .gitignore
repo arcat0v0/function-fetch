@@ -39,3 +39,4 @@ wrangler.jsonc
 
 # build outputs
 dist-node/
+src/esa_build_env.generated.ts

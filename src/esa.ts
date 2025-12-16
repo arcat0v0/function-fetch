@@ -1,16 +1,14 @@
 import type { ProxyBindings } from "./proxy.js";
 import { proxyFetch } from "./proxy.js";
 
-function buildEnv(env: ProxyBindings): ProxyBindings {
-	return {
-		...(process.env as Record<string, string | undefined> as ProxyBindings),
-		...(env ?? {}),
-	};
-}
+import { ESA_BUILD_ENV } from "./esa_build_env.generated.js";
 
 const worker = {
 	async fetch(request: Request, env: ProxyBindings) {
-		return proxyFetch(request, buildEnv(env));
+		return proxyFetch(request, {
+			...(ESA_BUILD_ENV as ProxyBindings),
+			...(env ?? {}),
+		});
 	},
 };
 

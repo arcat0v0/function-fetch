@@ -13,6 +13,7 @@ const ALLOW_KEYS = [
 	"FETCH_CACHE_TTL_SECONDS",
 	"FETCH_RETRY_ON_5XX",
 	"FETCH_CACHE_KV_BINDING",
+	"ESA_KV_NAMESPACE",
 ];
 
 /** @type {Record<string, string>} */

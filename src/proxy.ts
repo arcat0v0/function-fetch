@@ -13,6 +13,7 @@ export type ProxyBindings = {
 	FETCH_RETRY_ON_5XX?: string;
 	FETCH_CACHE_KV_BINDING?: string;
 	FASTEST_KV?: KVNamespace;
+	__CACHE_MANAGER__?: CacheManager;
 };
 
 type Target = {
@@ -283,7 +284,7 @@ export async function proxyFetch(
 	);
 	const retryOn5xx = retryable && shouldRetryOn5xx(env);
 
-	let cache = buildCacheManager(env);
+	let cache = env.__CACHE_MANAGER__ ?? buildCacheManager(env);
 	const key = cache ? cacheKey(env) : null;
 	const ttlSeconds = cache ? cacheTtlSeconds(env) : 0;
 
